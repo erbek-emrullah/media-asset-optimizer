@@ -1,23 +1,40 @@
-# Mimari Plan ve Notlar
+Mimari Plan ve Notlar
 
-Proje kodlamasına geçilmeden önce temel veritabanı ve klasör mimarisi kurgulandı.
+1. Altyapı (Docker)
 
-## 1. Veritabanı Tablo Yapısı (images)
-Sisteme yüklenen görsel verilerinin sağlıklı saklanması için `images` tablosu yapısı şu şekilde kurgulandı:
+Projeyi, ortam farklılıklarını ortadan kaldırmak amacıyla container yapısı üzerinde kuracağız.
 
-- **id:** Otomatik artan ID.
-- **original_filename:** Yüklenen asıl dosyanın adı
-- **stored_filename:** İsim çakışmalarını ve güvenlik zafiyetlerini önlemek amacıyla sistem tarafından üretilen benzersiz (UUID) isim.
-- **file_size:** Dosya boyutu. (İleride boyut tasarrufu raporlaması yapılabilmesi için eklendi).
-- **status:** İşlem durumunu takip etmek için 4 aşama kurgulandı: pending (kuyrukta), processing (işleniyor), completed (tamamlandı), failed (hata).
-- **variants:** Boyutlandırılan görsellerin bilgileri ayrı bir tablo açmak yerine JSON formatında tek bir alanda toplandı. Amaç, ilişkili tablo karmaşasından kaçınmak ve veritabanı sorgularını yormamak.
+* PHP 8.5
+* Laravel 13
+* Apache Web Server
+Host Name: media-optimizer.local
 
-## 2. Storage (Klasör) Yapısı
-Yüklenen ve işlenen görsellerin sunucuda birbirine karışmaması için aşağıdaki dizin yapısı kurgulandı:
+2. Veritabanı (images tablosu)
 
-- storage/app/public/originals/ -> Yüklenen ham görseller.
-- storage/app/public/variants/manset/ -> Manşet boyutuna getirilenler.
-- storage/app/public/variants/detay/ -> Detay boyutuna getirilenler.
-- storage/app/public/variants/thumbnail/ -> Küçük resimler.
+Varyantlar artık tabloda saklanmayacak. Yalnızca orijinal resmin temel bilgileri tutulacaktır:
 
-Not: Sisteme yeni bir ebat eklenmek istendiğinde, koda müdahale edilmeden sadece config dosyası üzerinden yeni varyant klasörünün otomatik açılması planlandı.
+* id: primary unsigned int
+* name: dosya isminden bağımsız isim
+* description: opsiyonel resim tanımı
+* mime_type: dosyanın türü
+* folder: disk üzerinde yığılmayı önlemek için yıl/ay formatında klasörleme (örneğin 2026/08)
+* file_checksum: mükerrer kayıtları önlemek amacıyla dosyanın hash imzası
+* created_at ve updated_at
+
+Not: Varyant ebatları ileride değişebileceğinden, veritabanında saklanmayacak ve yapılandırma dosyasından okunacaktır.
+
+3. Klasör Parçalama (Sharding)
+
+Sunucuda klasör okuma hızının düşmemesi için dosyalar alt klasörlere ayrılacaktır.
+Örnek: ID’si 14598 olan resim için önce 6 haneye tamamlayıp (014598) klasörleri böleceğiz.
+Erişim yolu şu şekilde olacaktır: variants/014/598/640xauto.jpg
+Bu yöntemle, veritabanına sorgu yapmadan statik dosyaya doğrudan erişim sağlanacaktır.
+
+4. İki Aşamalı Upload
+
+Gereksiz dosya transferini önlemek amacıyla yükleme işlemi iki aşamalı olarak gerçekleştirilecektir:
+
+1. JavaScript ile istemci tarafında dosyanın checksum’ı alınacak ve sunucuya iletilecektir.
+2. Sunucu, bu checksum’a göre dosyanın daha önce yüklenip yüklenmediğini kontrol edecektir.
+3. Dosya zaten mevcutsa, sistem dosyanın yüklü olduğu bilgisini iletecek; mevcut değilse, asıl yükleme işlemi başlatılacaktır.
+
