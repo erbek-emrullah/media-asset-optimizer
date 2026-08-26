@@ -12,5 +12,6 @@ class Image extends Model
     'mime_type',
     'folder',
     'file_checksum',
+    'path',
 ];
 }
