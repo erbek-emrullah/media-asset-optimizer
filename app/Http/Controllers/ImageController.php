@@ -13,7 +13,6 @@ class ImageController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Dosyayi kontrol et
         $request->validate([
             'name' => 'required|string|max:255',
             'image' => 'required|image|max:15360',
@@ -21,28 +20,28 @@ class ImageController extends Controller
 
         $file = $request->file('image');
 
-        // 2. Checksum hesapla (ayni dosya tekrar yuklenmesin)
+        // checksum hesapla
         $checksum = hash_file('sha256', $file->getRealPath());
 
         $existing = \App\Models\Image::where('file_checksum', $checksum)->first();
         if ($existing) {
-            return back()->withErrors(['image' => 'Bu gorsel daha once yuklenmis.']);
+            return back()->withErrors(['image' => 'Bu dosya zaten yuklu.']);
         }
 
-        // 3. Klasor yolunu olustur (2026/08 gibi)
         $folder = now()->format('Y/m');
+        $path = $file->store('originals/' . $folder);
 
-        // 4. Dosyayi diske kaydet
-        $path = $file->store('originals/' . $folder, 'public');
-
-        // 5. Veritabanina yaz
-        \App\Models\Image::create([
+        $imageRecord = \App\Models\Image::create([
             'name' => $request->input('name'),
             'description' => $request->input('description'),
             'mime_type' => $file->getMimeType(),
             'folder' => $folder,
             'file_checksum' => $checksum,
+            'path' => $path,
         ]);
+
+        // boyutlandirma icin kuyruga at
+        \App\Jobs\ProcessImageVariants::dispatch($imageRecord);
 
         return back()->with('success', 'Gorsel basariyla yuklendi!');
     }
