@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     libwebp-dev \
     zip \
     unzip \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-jpeg --with-webp \
@@ -20,5 +21,8 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 RUN sed -ri -e 's!AllowOverride None!AllowOverride All!g' /etc/apache2/apache2.conf
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 
 WORKDIR /var/www/html
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
