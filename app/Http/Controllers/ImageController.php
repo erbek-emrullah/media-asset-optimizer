@@ -51,4 +51,18 @@ class ImageController extends Controller
         $images = \App\Models\Image::latest()->get();
         return view('list', compact('images'));
     }
+
+    public function show($id, $size)
+    {
+        $paddedId = str_pad($id, 6, '0', STR_PAD_LEFT);
+        $shardPath = substr($paddedId, 0, 3) . '/' . substr($paddedId, 3, 3);
+
+        $filePath = storage_path('app/public/variants/' . $shardPath . '/' . $size . '.jpg');
+
+        if (!file_exists($filePath)) {
+            abort(404);
+        }
+
+        return response()->file($filePath);
+    }
 }

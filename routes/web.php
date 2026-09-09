@@ -10,3 +10,4 @@ Route::get('/', function () {
 Route::get('/upload', [ImageController::class, 'upload']);
 Route::post('/upload', [ImageController::class, 'store']);
 Route::get('/list', [ImageController::class, 'list']);
+Route::get('/image/{id}/{size}', [ImageController::class, 'show']);
