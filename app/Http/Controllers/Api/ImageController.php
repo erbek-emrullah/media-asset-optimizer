@@ -12,14 +12,12 @@ class ImageController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'image' => ['required', 'image', 'max:15360'],
+            'image' => ['required', 'file', 'mimetypes:image/jpeg,image/png,image/bmp,image/svg+xml,image/webp,image/gif', 'max:15360'],
         ]);
 
         $file = $request->file('image');
-
         $checksum = hash_file('sha256', $file->getRealPath());
 
-        // ayni dosya varsa tekrar yukletme
         $existing = Image::where('file_checksum', $checksum)->first();
         if ($existing) {
             return response()->json(['error' => 'bu dosya zaten yuklu'], 409);

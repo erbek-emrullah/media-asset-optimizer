@@ -3,35 +3,38 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Image;
 
 class ImageController extends Controller
 {
-    public function upload()
+    public function index()
     {
-        return view('upload');
+        $sizes = config('image_sizes.sizes');
+        return view('dashboard', compact('sizes'));
     }
 
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'image' => 'required|image|max:15360',
+            'image' => 'required|file|mimetypes:image/jpeg,image/png,image/bmp,image/svg+xml,image/webp,image/gif|max:15360',
         ]);
 
         $file = $request->file('image');
-
-        // checksum hesapla
         $checksum = hash_file('sha256', $file->getRealPath());
 
-        $existing = \App\Models\Image::where('file_checksum', $checksum)->first();
+        $existing = Image::where('file_checksum', $checksum)->first();
         if ($existing) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Bu dosya zaten yüklü.'], 409);
+            }
             return back()->withErrors(['image' => 'Bu dosya zaten yuklu.']);
         }
 
         $folder = now()->format('Y/m');
         $path = $file->store('originals/' . $folder);
 
-        $imageRecord = \App\Models\Image::create([
+        $imageRecord = Image::create([
             'name' => $request->input('name'),
             'description' => $request->input('description'),
             'mime_type' => $file->getMimeType(),
@@ -40,29 +43,21 @@ class ImageController extends Controller
             'path' => $path,
         ]);
 
-        // boyutlandirma icin kuyruga at
         \App\Jobs\ProcessImageVariants::dispatch($imageRecord);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Görsel yüklendi',
+                'image' => $imageRecord,
+            ], 201);
+        }
 
         return back()->with('success', 'Gorsel basariyla yuklendi!');
     }
 
-    public function list()
+    public function ajaxList(Request $request)
     {
-        $images = \App\Models\Image::latest()->get();
-        return view('list', compact('images'));
-    }
-
-    public function show($id, $size)
-    {
-        $paddedId = str_pad($id, 6, '0', STR_PAD_LEFT);
-        $shardPath = substr($paddedId, 0, 3) . '/' . substr($paddedId, 3, 3);
-
-        $filePath = storage_path('app/public/variants/' . $shardPath . '/' . $size . '.jpg');
-
-        if (!file_exists($filePath)) {
-            abort(404);
-        }
-
-        return response()->file($filePath);
+        $images = Image::latest()->paginate(12);
+        return response()->json($images);
     }
 }
