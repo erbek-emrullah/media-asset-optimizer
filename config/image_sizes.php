@@ -8,4 +8,9 @@ return [
     ],
 
     'quality' => 85,
+
+    'gif' => [
+        'crf' => 23,
+        'max_width' => 640,
+    ],
 ];

@@ -7,10 +7,13 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     supervisor \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install gd pdo pdo_mysql
+
+RUN echo "upload_max_filesize = 20M\npost_max_size = 21M\nmax_execution_time = 120" > /usr/local/etc/php/conf.d/uploads.ini
 
 RUN a2enmod rewrite
 
